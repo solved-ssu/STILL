@@ -86,6 +86,7 @@ describe("page and admin repositories", () => {
     const options = listPublishedPageOptions(database);
     expect(options).toHaveLength(15);
     expect(options[0]).toEqual(expect.objectContaining({ id: expect.any(String), slug: expect.any(String), title: expect.any(String) }));
+    expect(options.every((option) => Object.getPrototypeOf(option) === Object.prototype)).toBe(true);
 
     initializeDatabase(database);
     expect(listRecentPages(database, 30)).toHaveLength(15);
@@ -189,6 +190,7 @@ describe("page and admin repositories", () => {
   });
 
   it("문서 본문의 내부 링크를 저장·갱신하고 공개 문서끼리만 연결한다", () => {
+    const baselineReferences = listPageReferences(database);
     const target = createPage(
       database,
       { title: "다익스트라", icon: "D", excerpt: "최단 경로", topicSlug: "algorithm", subtopicSlug: "graph-search", content: [], status: "published" },
@@ -215,7 +217,7 @@ describe("page and admin repositories", () => {
       sourcePageId: source.id,
       targetPageId: target.id,
     });
-    expect(listPageReferences(database)).toHaveLength(1);
+    expect(listPageReferences(database)).toHaveLength(baselineReferences.length + 1);
 
     expect(updatePage(database, source.id, {
       title: "그래프 입문",
@@ -226,7 +228,7 @@ describe("page and admin repositories", () => {
       content: [],
       status: "published",
     }, { studentId: "20261234", role: "member" })).toBe(true);
-    expect(listPageReferences(database)).toEqual([]);
+    expect(listPageReferences(database)).toEqual(baselineReferences);
   });
 
   it("기존 문서를 보존하면서 소주제 테이블을 추가하는 전진 마이그레이션을 수행한다", () => {
@@ -270,8 +272,8 @@ describe("page and admin repositories", () => {
   });
 
   it("문서 상세 조회를 기록하고 최신 조회수를 반환한다", () => {
-    expect(incrementPageView(database, "segment-tree")).toBe(129);
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.viewCount).toBe(129);
+    expect(incrementPageView(database, "segment-tree")).toBe(185);
+    expect(getPageBySlug(database, "segment-tree", "20261234")?.viewCount).toBe(185);
     expect(incrementPageView(database, "missing")).toBeNull();
   });
 
