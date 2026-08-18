@@ -44,53 +44,42 @@ describe("page and admin repositories", () => {
 
   afterEach(() => database.close());
 
-  it("초기 주제와 예시 문서를 조회한다", () => {
+  it("초기 주제와 소주제를 제공하되 작성된 예시 문서는 만들지 않는다", () => {
     expect(listTopics(database)).toHaveLength(6);
-    expect(getTopic(database, "algorithm")?.pageCount).toBe(3);
+    expect(getTopic(database, "algorithm")?.pageCount).toBe(0);
     expect(getTopic(database, "missing")).toBeNull();
-    expect(listRecentPages(database, 1)[0]?.slug).toBe("segment-tree");
-    expect(listPagesByTopic(database, "algorithm")).toHaveLength(3);
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.bookmarked).toBe(false);
+    expect(listRecentPages(database, 1)).toEqual([]);
+    expect(listPagesByTopic(database, "algorithm")).toEqual([]);
     expect(listSubtopics(database)).toHaveLength(15);
     expect(listSubtopics(database, "algorithm").map((subtopic) => subtopic.slug)).toEqual([
       "data-structures",
       "graph-search",
       "dynamic-programming",
     ]);
-    expect(getSubtopic(database, "algorithm", "data-structures")?.pageCount).toBe(1);
+    expect(getSubtopic(database, "algorithm", "data-structures")?.pageCount).toBe(0);
     expect(getSubtopic(database, "algorithm", "missing")).toBeNull();
-    expect(listPagesBySubtopic(database, "algorithm", "data-structures")).toHaveLength(1);
-    expect(getPageBySlug(database, "segment-tree", "20261234")).toMatchObject({
-      subtopicSlug: "data-structures",
-      subtopicTitle: "자료구조",
-    });
+    expect(listPagesBySubtopic(database, "algorithm", "data-structures")).toEqual([]);
     expect(getPageBySlug(database, "missing", "20261234")).toBeNull();
   });
 
-  it("모든 소주제에 중복 없이 연결된 가이드 노트를 제공한다", () => {
-    const topics = listTopics(database);
-    const subtopics = listSubtopics(database);
-    const references = listPageReferences(database);
-
-    expect(topics.map((topic) => topic.pageCount)).toEqual([3, 3, 3, 2, 2, 2]);
-    expect(subtopics).toHaveLength(15);
-    expect(subtopics.every((subtopic) => subtopic.pageCount >= 1)).toBe(true);
-    expect(listRecentPages(database, 30)).toHaveLength(15);
-    expect(references.length).toBeGreaterThanOrEqual(15);
-    expect(new Set(references.map((reference) => `${reference.sourcePageId}:${reference.targetPageId}`)).size).toBe(references.length);
-    expect(references).toContainEqual({ sourcePageId: "segment-tree", targetPageId: "database-index" });
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.content).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "codeBlock" })]),
+  it("이전 편집팀 예시만 정리하고 부원이 만든 문서는 유지한다", () => {
+    const memberPage = createPage(
+      database,
+      { title: "부원이 쓴 노트", icon: "M", excerpt: "보존", topicSlug: "algorithm", subtopicSlug: "data-structures", content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
     );
-
-    const options = listPublishedPageOptions(database);
-    expect(options).toHaveLength(15);
-    expect(options[0]).toEqual(expect.objectContaining({ id: expect.any(String), slug: expect.any(String), title: expect.any(String) }));
-    expect(options.every((option) => Object.getPrototypeOf(option) === Object.prototype)).toBe(true);
+    database.prepare(`
+      INSERT INTO pages (id, slug, title, icon, excerpt, content_json, topic_slug, author_id, author_name, status, view_count, created_at, updated_at)
+      VALUES ('segment-tree', 'segment-tree', '세그먼트 트리 한 번에 이해하기', '🌲', '', '[]', 'algorithm', NULL, 'STILL 편집팀', 'published', 0, ?, ?)
+    `).run(new Date().toISOString(), new Date().toISOString());
 
     initializeDatabase(database);
-    expect(listRecentPages(database, 30)).toHaveLength(15);
-    expect(listPageReferences(database)).toEqual(references);
+
+    expect(getPageBySlug(database, "segment-tree", "20261234")).toBeNull();
+    expect(getPageById(database, memberPage.id, "20261234")?.title).toBe("부원이 쓴 노트");
+    expect(listPublishedPageOptions(database)).toEqual([
+      expect.objectContaining({ id: memberPage.id, title: "부원이 쓴 노트" }),
+    ]);
   });
 
   it("작성자만 문서를 수정하고 공개할 수 있다", () => {
@@ -177,6 +166,11 @@ describe("page and admin repositories", () => {
   });
 
   it("연결된 문서가 있는 소주제 삭제는 막고 비어 있는 소주제는 삭제한다", () => {
+    createPage(
+      database,
+      { title: "자료구조 노트", icon: "D", excerpt: "", topicSlug: "algorithm", subtopicSlug: "data-structures", content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
     expect(deleteSubtopic(database, "algorithm", "data-structures")).toBe("in-use");
     createSubtopic(database, {
       topicSlug: "algorithm",
@@ -232,12 +226,17 @@ describe("page and admin repositories", () => {
   });
 
   it("기존 문서를 보존하면서 소주제 테이블을 추가하는 전진 마이그레이션을 수행한다", () => {
+    createPage(
+      database,
+      { title: "기존 문서", icon: "P", excerpt: "", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
     database.exec("DROP TABLE page_subtopics; DROP TABLE subtopics;");
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 15 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 1 });
 
     initializeDatabase(database, { seedContent: false });
 
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 15 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 1 });
     expect(database.prepare("SELECT COUNT(*) AS count FROM subtopics").get()).toEqual({ count: 0 });
   });
 
@@ -247,49 +246,75 @@ describe("page and admin repositories", () => {
       { title: "연결 대상", icon: "T", excerpt: "대상", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
       { studentId: "20261234", name: "김알고" },
     );
-    database.prepare("UPDATE pages SET content_json = ? WHERE id = 'segment-tree'").run(JSON.stringify([{
+    const source = createPage(
+      database,
+      { title: "연결 원본", icon: "S", excerpt: "원본", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
+    database.prepare("UPDATE pages SET content_json = ? WHERE id = ?").run(JSON.stringify([{
       type: "paragraph",
       content: [{ type: "link", href: `/pages/${target.slug}`, content: "연결 대상" }],
-    }]));
+    }]), source.id);
     database.exec("DROP TABLE page_links;");
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 16 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 2 });
 
     initializeDatabase(database, { seedContent: false });
 
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 16 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 2 });
     expect(listPageReferences(database)).toContainEqual({
-      sourcePageId: "segment-tree",
+      sourcePageId: source.id,
       targetPageId: target.id,
     });
   });
 
   it("북마크를 추가하고 다시 누르면 해제한다", () => {
-    expect(toggleBookmark(database, "20261234", "segment-tree")).toBe(true);
+    const page = createPage(
+      database,
+      { title: "북마크할 문서", icon: "B", excerpt: "", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
+    expect(toggleBookmark(database, "20261234", page.id)).toBe(true);
     expect(listBookmarkedPages(database, "20261234")).toHaveLength(1);
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.bookmarked).toBe(true);
-    expect(toggleBookmark(database, "20261234", "segment-tree")).toBe(false);
+    expect(getPageBySlug(database, page.slug, "20261234")?.bookmarked).toBe(true);
+    expect(toggleBookmark(database, "20261234", page.id)).toBe(false);
     expect(listBookmarkedPages(database, "20261234")).toEqual([]);
   });
 
   it("문서 상세 조회를 기록하고 최신 조회수를 반환한다", () => {
-    expect(incrementPageView(database, "segment-tree")).toBe(185);
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.viewCount).toBe(185);
+    const page = createPage(
+      database,
+      { title: "조회 문서", icon: "V", excerpt: "", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
+    expect(incrementPageView(database, page.id)).toBe(1);
+    expect(getPageBySlug(database, page.slug, "20261234")?.viewCount).toBe(1);
     expect(incrementPageView(database, "missing")).toBeNull();
   });
 
   it("손상된 저장 콘텐츠는 빈 문서로 안전하게 복구한다", () => {
-    database.prepare("UPDATE pages SET content_json = ? WHERE id = 'segment-tree'").run(
-      JSON.stringify([{ props: {}, content: [] }]),
+    const page = createPage(
+      database,
+      { title: "복구 문서", icon: "R", excerpt: "", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
     );
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.content).toEqual([]);
-    database.prepare("UPDATE pages SET content_json = ? WHERE id = 'segment-tree'").run("not-json");
-    expect(getPageBySlug(database, "segment-tree", "20261234")?.content).toEqual([]);
+    database.prepare("UPDATE pages SET content_json = ? WHERE id = ?").run(
+      JSON.stringify([{ props: {}, content: [] }]),
+      page.id,
+    );
+    expect(getPageBySlug(database, page.slug, "20261234")?.content).toEqual([]);
+    database.prepare("UPDATE pages SET content_json = ? WHERE id = ?").run("not-json", page.id);
+    expect(getPageBySlug(database, page.slug, "20261234")?.content).toEqual([]);
   });
 
   it("관리자 통계와 신고 목록을 제공한다", () => {
-    database.prepare("INSERT INTO reports (page_id, reporter_id, reason, status, created_at) VALUES ('segment-tree', '20261234', '설명이 정확하지 않은 것 같습니다.', 'open', ?)").run(new Date().toISOString());
-    expect(getAdminStats(database)).toEqual({ users: 2, pages: 15, openReports: 1 });
-    expect(listReports(database)[0]).toMatchObject({ pageTitle: "세그먼트 트리 한 번에 이해하기", reporterName: "김알고", status: "open" });
+    const page = createPage(
+      database,
+      { title: "검토할 문서", icon: "R", excerpt: "", topicSlug: "algorithm", subtopicSlug: null, content: [], status: "published" },
+      { studentId: "20261234", name: "김알고" },
+    );
+    database.prepare("INSERT INTO reports (page_id, reporter_id, reason, status, created_at) VALUES (?, '20261234', '설명이 정확하지 않은 것 같습니다.', 'open', ?)").run(page.id, new Date().toISOString());
+    expect(getAdminStats(database)).toEqual({ users: 2, pages: 1, openReports: 1 });
+    expect(listReports(database)[0]).toMatchObject({ pageTitle: "검토할 문서", reporterName: "김알고", status: "open" });
   });
 
   it("활성 회원별 공개 포스팅 수를 0개인 회원까지 집계한다", () => {
