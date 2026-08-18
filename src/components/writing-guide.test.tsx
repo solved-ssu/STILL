@@ -13,5 +13,6 @@ describe("WritingGuide", () => {
     expect(screen.getByText("근거와 출처 남기기")).toBeInTheDocument();
     expect(screen.getByText("노트 연결하기")).toBeInTheDocument();
     expect(screen.getByText("저장·공개 전 확인")).toBeInTheDocument();
+    expect(screen.queryByText("MEMBER WRITING")).not.toBeInTheDocument();
   });
 });

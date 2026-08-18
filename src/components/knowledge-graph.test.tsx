@@ -218,7 +218,7 @@ describe("KnowledgeGraphView", () => {
     expect(pageNode?.querySelector(":scope > text")).toHaveTextContent("세그먼트 트리");
   });
 
-  it("노드에 머물면 종류와 연결 수를 보여 주는 탐색 정보를 제공한다", () => {
+  it("노트에는 계층선 대신 문서 링크 수를 일관되게 보여 준다", () => {
     render(
       <KnowledgeGraphView
         topics={topics}
@@ -232,14 +232,17 @@ describe("KnowledgeGraphView", () => {
     const inspector = screen.getByRole("status", { name: "선택한 노드 정보" });
     expect(inspector).toHaveTextContent("세그먼트 트리");
     expect(inspector).toHaveTextContent("노트");
-    expect(inspector).toHaveTextContent("연결 2개");
+    expect(inspector).toHaveTextContent("문서 링크 1개");
+    expect(inspector).not.toHaveTextContent("연결 2개");
   });
 
   it("연결이 없는 노드는 빈 상태를 구체적으로 안내한다", () => {
     render(<KnowledgeGraphView topics={topics} subtopics={subtopics} pages={pages} />);
 
     fireEvent.mouseEnter(screen.getByRole("link", { name: "세그먼트 트리 문서 보기" }));
-    expect(screen.getByRole("status", { name: "선택한 노드 정보" })).toHaveTextContent("아직 연결된 문서가 없습니다");
+    const inspector = screen.getByRole("status", { name: "선택한 노드 정보" });
+    expect(inspector).toHaveTextContent("문서 링크 0개");
+    expect(inspector).toHaveTextContent("아직 문서 링크가 없습니다");
   });
 
   it("그래프가 화면 밖으로 나가면 움직임을 중단하고 돌아오면 재개한다", () => {
