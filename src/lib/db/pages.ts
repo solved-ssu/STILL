@@ -56,6 +56,12 @@ export interface PageReference {
   targetPageId: string;
 }
 
+export interface PageLinkOption {
+  id: string;
+  slug: string;
+  title: string;
+}
+
 type PageRow = {
   id: string;
   slug: string;
@@ -283,6 +289,16 @@ export function listPageReferences(database: DatabaseSync): PageReference[] {
     ORDER BY links.source_page_id, target.id
   `).all() as Array<{ source_page_id: string; target_page_id: string }>;
   return rows.map((row) => ({ sourcePageId: row.source_page_id, targetPageId: row.target_page_id }));
+}
+
+export function listPublishedPageOptions(database: DatabaseSync): PageLinkOption[] {
+  const rows = database.prepare(`
+    SELECT id, slug, title
+    FROM pages
+    WHERE status = 'published'
+    ORDER BY title COLLATE NOCASE, id
+  `).all() as Array<{ id: string; slug: string; title: string }>;
+  return rows.map((row) => ({ id: row.id, slug: row.slug, title: row.title }));
 }
 
 export function listPagesByTopic(database: DatabaseSync, topicSlug: string): PageSummary[] {

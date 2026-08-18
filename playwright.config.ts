@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 3108;
 const baseURL = `http://127.0.0.1:${port}`;
+const databasePath = `data/e2e-${process.pid}-${Date.now()}.db`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -30,7 +31,7 @@ export default defineConfig({
       BOOTSTRAP_ADMIN_ID: process.env.E2E_ADMIN_ID ?? "20269999",
       BOOTSTRAP_ADMIN_NAME: "E2E 관리자",
       BOOTSTRAP_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD ?? "e2e-admin-2026",
-      STILL_DATABASE_PATH: `data/e2e-${process.pid}.db`,
+      STILL_DATABASE_PATH: databasePath,
       NEXT_DIST_DIR: ".next-e2e",
     },
   },

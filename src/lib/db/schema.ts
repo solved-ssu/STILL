@@ -2,37 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { parseStoredPageContent } from "@/lib/content/page-content";
 import { extractInternalPageSlugs } from "@/lib/content/page-links";
-
-const sampleContent = JSON.stringify([
-  {
-    type: "heading",
-    props: { level: 1 },
-    content: [{ type: "text", text: "세그먼트 트리", styles: {} }],
-  },
-  {
-    type: "paragraph",
-    content: [
-      {
-        type: "text",
-        text: "구간 질의와 점 갱신을 O(log N)에 처리하는 자료구조입니다.",
-        styles: {},
-      },
-    ],
-  },
-  {
-    type: "heading",
-    props: { level: 2 },
-    content: [{ type: "text", text: "언제 사용하나요?", styles: {} }],
-  },
-  {
-    type: "bulletListItem",
-    content: [{ type: "text", text: "배열의 구간 합·최솟값·최댓값 질의", styles: {} }],
-  },
-  {
-    type: "bulletListItem",
-    content: [{ type: "text", text: "값이 자주 바뀌는 온라인 쿼리", styles: {} }],
-  },
-]);
+import { LEGACY_SEGMENT_TREE_CONTENT, SAMPLE_PAGES } from "@/lib/db/sample-pages";
 
 export function initializeDatabase(
   database: DatabaseSync,
@@ -189,31 +159,54 @@ export function initializeDatabase(
   ] as const;
   for (const subtopic of subtopics) insertSubtopic.run(...subtopic);
 
-  const now = new Date().toISOString();
-  database
-    .prepare(`
+  const now = Date.now();
+  const insertPage = database.prepare(`
       INSERT OR IGNORE INTO pages (
         id, slug, title, icon, excerpt, content_json, topic_slug,
         author_id, author_name, status, view_count, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, 'published', ?, ?, ?)
-    `)
-    .run(
-      "segment-tree",
-      "segment-tree",
-      "세그먼트 트리 한 번에 이해하기",
-      "🌲",
-      "구간 쿼리와 업데이트를 O(log N)에 처리하는 원리",
-      sampleContent,
-      "algorithm",
-      "STILL 편집팀",
-      128,
-      now,
-      now,
-    );
-  database.prepare(`
+    `);
+  const findSeed = database.prepare("SELECT id, content_json FROM pages WHERE id = ? OR slug = ?");
+  const migrateLegacySegmentTree = database.prepare(`
+    UPDATE pages SET content_json = ?, updated_at = ?
+    WHERE id = 'segment-tree' AND content_json = ?
+  `);
+  const insertPageSubtopic = database.prepare(`
     INSERT OR IGNORE INTO page_subtopics (page_id, topic_slug, subtopic_slug)
-    VALUES ('segment-tree', 'algorithm', 'data-structures')
-  `).run();
+    VALUES (?, ?, ?)
+  `);
+  const deleteSeedLinks = database.prepare("DELETE FROM page_links WHERE source_page_id = ?");
+  const insertSeedLink = database.prepare("INSERT OR IGNORE INTO page_links (source_page_id, target_slug) VALUES (?, ?)");
+
+  SAMPLE_PAGES.forEach((page, index) => {
+    const timestamp = new Date(now - index * 3_600_000).toISOString();
+    const inserted = insertPage.run(
+      page.id,
+      page.slug,
+      page.title,
+      page.icon,
+      page.excerpt,
+      page.contentJson,
+      page.topicSlug,
+      "STILL 편집팀",
+      page.viewCount,
+      timestamp,
+      timestamp,
+    );
+    const stored = findSeed.get(page.id, page.slug) as { id: string; content_json: string } | undefined;
+    if (!stored || stored.id !== page.id) return;
+
+    let shouldWriteLinks = inserted.changes === 1;
+    if (page.id === "segment-tree" && stored.content_json === LEGACY_SEGMENT_TREE_CONTENT) {
+      const migrated = migrateLegacySegmentTree.run(page.contentJson, timestamp, LEGACY_SEGMENT_TREE_CONTENT);
+      shouldWriteLinks ||= migrated.changes === 1;
+    }
+
+    insertPageSubtopic.run(page.id, page.topicSlug, page.subtopicSlug);
+    if (!shouldWriteLinks) return;
+    deleteSeedLinks.run(page.id);
+    for (const targetSlug of page.targetSlugs) insertSeedLink.run(page.id, targetSlug);
+  });
 }
 
 function backfillPageLinks(database: DatabaseSync): void {

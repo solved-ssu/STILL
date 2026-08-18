@@ -162,10 +162,12 @@ test("홈 그래프가 움직이고 사용자가 정지하거나 노드를 직�
   const bounds = await circle.boundingBox();
   expect(bounds).not.toBeNull();
   const initialX = pausedX;
-  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(bounds!.x + bounds!.width / 2 + 70, bounds!.y + bounds!.height / 2 + 35, { steps: 5 });
-  await page.mouse.up();
+  const graph = page.getByRole("group", { name: "분야와 문서 사이의 관계를 나타내는 노트 그래프" });
+  const startX = bounds!.x + bounds!.width / 2;
+  const startY = bounds!.y + bounds!.height / 2;
+  await node.dispatchEvent("pointerdown", { pointerId: 71, pointerType: "touch", isPrimary: true, button: 0, clientX: startX, clientY: startY });
+  await graph.dispatchEvent("pointermove", { pointerId: 71, pointerType: "touch", isPrimary: true, button: 0, clientX: startX + 70, clientY: startY + 35 });
+  await graph.dispatchEvent("pointerup", { pointerId: 71, pointerType: "touch", isPrimary: true, button: 0, clientX: startX + 70, clientY: startY + 35 });
 
   await expect(circle).not.toHaveAttribute("cx", initialX!);
   await expect(page).toHaveURL(/\/home$/);

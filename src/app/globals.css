@@ -100,12 +100,30 @@ button { cursor: pointer; }
 .graph-filter:hover { background: #f0f2ef; color: #202522; }
 .graph-filter[aria-pressed="true"] { border-color: #c9d5d0; background: #e8eeeb; color: #294e44; }
 .graph-filter span { color: #858a86; font-size: 10px; font-variant-numeric: tabular-nums; }
-.knowledge-graph__stage { height: 500px; background: #f8f9f7; }
+.knowledge-graph__stage { position: relative; height: 500px; background: #f8f9f7; }
 .knowledge-graph__stage svg { cursor: grab; touch-action: none; user-select: none; }
 .knowledge-graph__stage svg[data-dragging] { cursor: grabbing; }
 .knowledge-graph__stage [data-graph-node-id] { cursor: grab; }
 .knowledge-graph__stage svg[data-dragging="node"] [data-graph-node-id] { cursor: grabbing; }
 .knowledge-graph__stage a:focus circle { outline: none; stroke-width: 4; }
+.knowledge-graph__inspector {
+  pointer-events: none;
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: grid;
+  min-width: 172px;
+  grid-template-columns: 1fr auto;
+  gap: 2px 14px;
+  border: 1px solid #d8dad7;
+  background: rgb(255 255 255 / 94%);
+  padding: 9px 11px;
+  color: #626863;
+  font-size: 11px;
+}
+.knowledge-graph__inspector strong { grid-column: 1 / -1; color: #252a27; font-size: 13px; }
+.knowledge-graph__inspector-kind { font-weight: 600; color: #315c50; }
+.knowledge-graph__inspector-empty { grid-column: 1 / -1; margin-top: 2px; color: #747a75; }
 .knowledge-graph__legend {
   display: flex;
   min-height: 38px;
@@ -126,5 +144,11 @@ button { cursor: pointer; }
 @media (max-width: 767px) {
   .desktop-sidebar { display: none; }
   .knowledge-graph__stage { height: 390px; }
-  .knowledge-graph__legend p { display: none; }
+  .knowledge-graph__legend { flex-wrap: wrap; gap: 8px 13px; padding-block: 10px; }
+  .knowledge-graph__legend p { width: 100%; margin-left: 0; line-height: 1.55; }
+  .knowledge-graph__inspector { right: 9px; bottom: 9px; min-width: 148px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-graph * { scroll-behavior: auto !important; }
 }

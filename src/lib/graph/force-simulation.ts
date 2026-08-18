@@ -19,6 +19,7 @@ interface StepOptions {
 
 const PADDING = 24;
 const MAX_REPULSION_COMPARISONS = 16_000;
+const IDLE_ALPHA = 0.05;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -35,10 +36,16 @@ export function estimateRepulsionComparisons(nodeCount: number): number {
   return count * Math.max(1, Math.floor(MAX_REPULSION_COMPARISONS / count));
 }
 
-function linkDistance(source: GraphNodeKind, target: GraphNodeKind): number {
-  if (source === "page" || target === "page") return 66;
-  if (source === "subtopic" || target === "subtopic") return 92;
-  return 138;
+export function nextSimulationAlpha(current: number): number {
+  if (!Number.isFinite(current)) return 1;
+  return Math.max(IDLE_ALPHA, current * 0.975 - 0.001);
+}
+
+function linkDistance(source: GraphNodeKind, target: GraphNodeKind, edgeKind?: KnowledgeGraphEdge["kind"]): number {
+  if (edgeKind === "reference") return 170;
+  if (source === "page" || target === "page") return 88;
+  if (source === "subtopic" || target === "subtopic") return 122;
+  return 220;
 }
 
 export function initializeForceNodes(
@@ -81,7 +88,7 @@ export function stepForceSimulation(
         distanceSquared = 0.01;
       }
       const distance = Math.sqrt(distanceSquared);
-      const repel = Math.min(1.8, (440 * alpha) / distanceSquared);
+      const repel = Math.min(2.2, (1_000 * alpha) / distanceSquared);
       const fx = (dx / distance) * repel;
       const fy = (dy / distance) * repel;
       a.vx -= fx;
@@ -116,7 +123,8 @@ export function stepForceSimulation(
     const dx = target.x - source.x;
     const dy = target.y - source.y;
     const distance = Math.max(Math.hypot(dx, dy), 0.1);
-    const spring = (distance - linkDistance(source.kind, target.kind)) * 0.018 * alpha;
+    const springStrength = edge.kind === "reference" ? 0.0045 : 0.014;
+    const spring = (distance - linkDistance(source.kind, target.kind, edge.kind)) * springStrength * alpha;
     const fx = (dx / distance) * spring;
     const fy = (dy / distance) * spring;
     source.vx += fx;
@@ -131,12 +139,13 @@ export function stepForceSimulation(
       node.vy = 0;
       return;
     }
-    const centerStrength = node.kind === "root" ? 0.012 : 0.0015;
+    const centerStrength = node.kind === "root" ? 0.012 : 0.0008;
     node.vx += (centerX - node.x) * centerStrength * alpha;
     node.vy += (centerY - node.y) * centerStrength * alpha;
-    const phase = options.timeMs / 950 + index * 1.73;
-    node.vx += Math.sin(phase) * 0.012 * alpha;
-    node.vy += Math.cos(phase * 0.91) * 0.012 * alpha;
+    const phase = options.timeMs / 1_350 + index * 1.73;
+    const idleDrift = 0.016 + 0.012 * alpha;
+    node.vx += Math.sin(phase) * idleDrift;
+    node.vy += Math.cos(phase * 0.91) * idleDrift;
     node.vx *= 0.88;
     node.vy *= 0.88;
     node.x = clamp(node.x + node.vx, PADDING, options.width - PADDING);

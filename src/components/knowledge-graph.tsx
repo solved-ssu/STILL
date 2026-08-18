@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import type { PageReference, PageSummary, SubtopicSummary, TopicSummary } from "@/lib/db/pages";
-import { initializeForceNodes, stepForceSimulation, type ForceSimulationNode } from "@/lib/graph/force-simulation";
+import { initializeForceNodes, nextSimulationAlpha, stepForceSimulation, type ForceSimulationNode } from "@/lib/graph/force-simulation";
 import { GRAPH_ZOOM_MAX, GRAPH_ZOOM_MIN, graphViewBox, normalizeGraphCamera } from "@/lib/graph/graph-camera";
 import { buildKnowledgeGraph, type KnowledgeGraphNode } from "@/lib/graph/knowledge-graph";
 
@@ -114,6 +114,8 @@ export function KnowledgeGraphView({
   const [dragging, setDragging] = useState<DraggingMode | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(true);
+  const [isInViewport, setIsInViewport] = useState(true);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDismissed, setSearchDismissed] = useState(false);
@@ -121,6 +123,7 @@ export function KnowledgeGraphView({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState("");
   const svgRef = useRef<SVGSVGElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const pinchRef = useRef<PinchState | null>(null);
   const activePointersRef = useRef(new Map<number, Point>());
@@ -147,17 +150,38 @@ export function KnowledgeGraphView({
   }, []);
 
   useEffect(() => {
+    const updateVisibility = () => setIsDocumentVisible(document.visibilityState !== "hidden");
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setIsInViewport(entry?.isIntersecting ?? true), {
+      rootMargin: "80px 0px",
+      threshold: 0,
+    });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const initial = initializeForceNodes(graph.nodes);
     simulationRef.current = initial;
     alphaRef.current = 1;
   }, [graph, layoutRevision]);
 
   useEffect(() => {
-    if (!isPlaying || prefersReducedMotion || graph.nodes.length === 0) return;
+    if (!isPlaying || prefersReducedMotion || !isDocumentVisible || !isInViewport || graph.nodes.length === 0) return;
     let frameId = 0;
+    let previousStep = 0;
     const animate = (timeMs: number) => {
-      alphaRef.current = Math.max(0, alphaRef.current * 0.975 - 0.001);
-      if (alphaRef.current <= 0.01) return;
+      frameId = window.requestAnimationFrame(animate);
+      if (timeMs - previousStep < 30) return;
+      previousStep = timeMs;
+      alphaRef.current = nextSimulationAlpha(alphaRef.current);
       const next = stepForceSimulation(simulationRef.current, graph.edges, {
         width: graph.width,
         height: graph.height,
@@ -167,11 +191,10 @@ export function KnowledgeGraphView({
       });
       simulationRef.current = next;
       setNodePositions(positionsFromSimulation(next));
-      frameId = window.requestAnimationFrame(animate);
     };
     frameId = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frameId);
-  }, [graph, isPlaying, prefersReducedMotion, layoutRevision]);
+  }, [graph, isDocumentVisible, isInViewport, isPlaying, prefersReducedMotion, layoutRevision]);
 
   const positionedNodes = useMemo(
     () => graph.nodes.map((node) => ({ ...node, ...(nodePositions[node.id] ?? {}) })),
@@ -190,6 +213,32 @@ export function KnowledgeGraphView({
     }
     return connected;
   }, [graph.edges, hoveredNode]);
+  const connectionCounts = useMemo(() => {
+    const connections = new Map<string, Set<string>>();
+    for (const edge of graph.edges) {
+      const source = connections.get(edge.source) ?? new Set<string>();
+      const target = connections.get(edge.target) ?? new Set<string>();
+      source.add(edge.target);
+      target.add(edge.source);
+      connections.set(edge.source, source);
+      connections.set(edge.target, target);
+    }
+    return new Map([...connections].map(([nodeId, connected]) => [nodeId, connected.size]));
+  }, [graph.edges]);
+  const referenceConnectionCounts = useMemo(() => {
+    const connections = new Map<string, Set<string>>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "reference") continue;
+      const source = connections.get(edge.source) ?? new Set<string>();
+      const target = connections.get(edge.target) ?? new Set<string>();
+      source.add(edge.target);
+      target.add(edge.source);
+      connections.set(edge.source, source);
+      connections.set(edge.target, target);
+    }
+    return new Map([...connections].map(([nodeId, connected]) => [nodeId, connected.size]));
+  }, [graph.edges]);
+  const inspectedNode = nodeById.get(hoveredNode ?? selectedNodeId ?? "");
   const camera = useMemo(
     () => normalizeGraphCamera({ zoom, pan }, graph.width, graph.height),
     [graph.height, graph.width, pan, zoom],
@@ -443,7 +492,7 @@ export function KnowledgeGraphView({
   }
 
   return (
-    <section className="knowledge-graph" aria-labelledby="knowledge-graph-title">
+    <section ref={sectionRef} className="knowledge-graph" aria-labelledby="knowledge-graph-title">
       <header className="knowledge-graph__header">
         <div>
           <div className="flex items-center gap-2 text-xs text-[#676c68]">
@@ -496,7 +545,7 @@ export function KnowledgeGraphView({
             className="h-8 w-full border border-[#d8dad7] bg-white pl-8 pr-3 text-xs text-[#303532] outline-none transition focus:border-[#61766d] focus:ring-2 focus:ring-[#61766d]/15"
           />
           {searchOpen && (
-            <ul id="knowledge-graph-search-results" role="listbox" className="absolute z-20 mt-1 max-h-56 w-full overflow-auto border border-[#d8dad7] bg-white p-1 shadow-lg">
+            <ul id="knowledge-graph-search-results" role="listbox" className="absolute z-20 mt-1 max-h-56 w-full overflow-auto border border-[#d8dad7] bg-white p-1">
               {searchResults.map((node, index) => (
                 <li
                   key={node.id}
@@ -540,7 +589,7 @@ export function KnowledgeGraphView({
             className="h-full w-full"
             style={{ touchAction: "none" }}
             data-dragging={dragging ?? undefined}
-            data-motion={isPlaying ? "playing" : "paused"}
+            data-motion={!isPlaying ? "paused" : prefersReducedMotion || !isDocumentVisible || !isInViewport ? "suspended" : "playing"}
             onPointerDown={startDragging}
             onPointerMove={continueDragging}
             onPointerUp={stopDragging}
@@ -570,9 +619,16 @@ export function KnowledgeGraphView({
                 const isHovered = hoveredNode === node.id;
                 const isSelected = selectedNodeId === node.id;
                 const isDimmed = connectedNodes !== null && !connectedNodes.has(node.id);
-                const radius = node.kind === "root" ? 14 : node.kind === "topic" ? 10 : node.kind === "subtopic" ? 7.5 : 5;
+                const connectionCount = connectionCounts.get(node.id) ?? 0;
+                const radius = node.kind === "root"
+                  ? 14
+                  : node.kind === "topic"
+                    ? 11 + Math.min(3, connectionCount * 0.25)
+                    : node.kind === "subtopic"
+                      ? 8.5 + Math.min(2, connectionCount * 0.2)
+                      : 6 + Math.min(2.5, Math.max(0, connectionCount - 1) * 0.7);
                 const fill = node.kind === "page" ? "#f7f8f6" : node.kind === "subtopic" ? "#fffefa" : color;
-                const showLabel = node.kind !== "page" || isHovered || activeTopic !== null || camera.zoom >= 1.25 || graph.nodes.length <= 45;
+                const showLabel = node.kind !== "page" || isHovered || isSelected || activeTopic !== null || camera.zoom >= 1.25;
                 const label = node.kind === "topic"
                   ? `${node.label} 분야 보기`
                   : node.kind === "subtopic"
@@ -589,6 +645,7 @@ export function KnowledgeGraphView({
                     }}
                     href={node.href}
                     data-graph-node-id={node.id}
+                    data-connection-count={connectionCount}
                     data-selected={isSelected || undefined}
                     aria-label={label}
                     aria-current={isSelected ? "location" : undefined}
@@ -632,6 +689,16 @@ export function KnowledgeGraphView({
               })}
             </g>
           </svg>
+        )}
+        {inspectedNode && (
+          <div role="status" aria-label="선택한 노드 정보" className="knowledge-graph__inspector">
+            <span className="knowledge-graph__inspector-kind">{graphKindLabel(inspectedNode)}</span>
+            <strong>{inspectedNode.label}</strong>
+            <span>연결 {connectionCounts.get(inspectedNode.id) ?? 0}개</span>
+            {inspectedNode.kind === "page" && (referenceConnectionCounts.get(inspectedNode.id) ?? 0) === 0 && (
+              <span className="knowledge-graph__inspector-empty">아직 연결된 문서가 없습니다</span>
+            )}
+          </div>
         )}
       </div>
       <footer className="knowledge-graph__legend"><span><i className="graph-dot graph-dot--field" />대주제</span><span><i className="graph-dot graph-dot--subtopic" />소주제</span><span><i className="graph-dot graph-dot--note" />노트</span><span><i className="inline-block h-px w-4 border-t border-dashed border-[#78668c]" />문서 링크</span><p id="knowledge-graph-help">노드는 연결 관계에 따라 움직입니다. 직접 드래그하거나 방향키로 옮기고, 빈 공간을 드래그해 화면을 이동하거나 두 손가락으로 확대하세요.</p></footer>

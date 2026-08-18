@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
 
 mocks.useCreateBlockNote.mockImplementation(() => mocks.editor);
 
-vi.mock("@blocknote/react", () => ({ useCreateBlockNote: mocks.useCreateBlockNote }));
+vi.mock("@blocknote/react", () => ({
+  SuggestionMenuController: () => null,
+  useCreateBlockNote: mocks.useCreateBlockNote,
+}));
 vi.mock("@blocknote/mantine", () => ({
   BlockNoteView: () => <div role="textbox" />,
 }));
