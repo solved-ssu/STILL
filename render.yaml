@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: still
+    runtime: docker
+    plan: starter
+    region: singapore
+    numInstances: 1
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health
+    envVars:
+      - key: AUTH_PEPPER
+        generateValue: true
+      - key: STILL_DATABASE_PATH
+        value: /app/data/still.db
+      - key: STILL_BACKUP_DIR
+        value: /app/data/backups
+      - key: BOOTSTRAP_ADMIN_ID
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: still-data
+      mountPath: /app/data
+      sizeGB: 1

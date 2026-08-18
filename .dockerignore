@@ -1,0 +1,11 @@
+.git
+.next
+.next-e2e
+.next-build
+node_modules
+data
+coverage
+playwright-report
+test-results
+.env*
+npm-debug.log*
