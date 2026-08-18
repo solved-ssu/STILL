@@ -12,6 +12,7 @@
     "validate:runtime": "node --env-file-if-exists=.env.local scripts/validate-runtime.mjs",
     "backup": "node --env-file-if-exists=.env.local scripts/backup-database.mjs",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

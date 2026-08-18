@@ -49,6 +49,7 @@ npm test
 npm run test:coverage
 npm run test:e2e
 npm run lint
+npm run typecheck
 npm run build
 npm audit
 ```
