@@ -44,5 +44,6 @@ describe("EditorClient", () => {
     render(<EditorClient page={null} topics={[{ slug: "algorithm", title: "알고리즘", icon: "A", description: "", pageCount: 0 }]} subtopics={[]} />);
 
     expect(screen.getByRole("button", { name: "저장" })).not.toHaveClass("hidden");
+    expect(screen.getByRole("heading", { name: "새 문서 작성", level: 1 })).toHaveClass("sr-only");
   });
 });
