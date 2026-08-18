@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { KnowledgeGraphView } from "@/components/knowledge-graph";
 import { PageList } from "@/components/page-list";
+import { WritingGuide } from "@/components/writing-guide";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDatabase } from "@/lib/db/database";
 import { listPageReferences, listRecentPages, listSubtopics, listTopics } from "@/lib/db/pages";
@@ -58,6 +59,10 @@ export default async function HomePage() {
           </nav>
         </aside>
       </div>
+
+      <section className="mt-10">
+        <WritingGuide />
+      </section>
 
       {connectedPages.length > 0 && (
         <section className="mt-10" aria-labelledby="connected-pages-title">

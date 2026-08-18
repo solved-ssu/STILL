@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import type { PageDetail, PageLinkOption, SubtopicSummary, TopicSummary } from "@/lib/db/pages";
 import { BlockEditor } from "./block-editor";
+import { WritingGuide } from "./writing-guide";
 
 export function EditorClient({ page, topics, subtopics, linkablePages = [] }: { page: PageDetail | null; topics: TopicSummary[]; subtopics: SubtopicSummary[]; linkablePages?: PageLinkOption[] }) {
   const router = useRouter();
@@ -56,6 +57,7 @@ export function EditorClient({ page, topics, subtopics, linkablePages = [] }: { 
         <label className="text-xs font-semibold text-[#626863] sm:col-span-2">한 줄 요약<input value={excerpt} onChange={(event) => setExcerpt(event.target.value)} maxLength={240} placeholder="문서에서 배울 수 있는 내용" className="mt-2 h-9 w-full border border-[#d5d8d4] bg-white px-3 text-sm font-normal text-[#424743] outline-none" /></label>
       </div>
       {message && message.includes("못") && <p role="alert" className="mt-3 text-sm text-red-700">{message}</p>}
+      <div className="mt-7"><WritingGuide variant="compact" /></div>
       <div className="mt-9 min-h-72"><BlockEditor initialContent={page?.content ?? []} editable onChange={setContent} linkablePages={linkablePages} /></div>
     </div>
   </div>;

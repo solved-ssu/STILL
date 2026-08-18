@@ -25,14 +25,13 @@ test("관리자 로그인부터 문서 작성·공개·북마크까지 동작한
   await expect(page.getByText("Solved Today I Learned Log", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "작성 현황" })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "분야와 문서 사이의 관계를 나타내는 노트 그래프" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "문서 작성 가이드" })).toBeVisible();
+  await expect(page.getByText("예시 문서 대신 이 기준을 참고해", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "자료구조 소주제 보기" })).toBeVisible();
   await page.getByRole("link", { name: "자료구조 소주제 보기" }).click();
   await expect(page).toHaveURL(/\/topics\/algorithm\/data-structures$/);
   await expect(page.getByRole("heading", { name: "자료구조" })).toBeVisible();
-  await page.getByRole("link", { name: /세그먼트 트리 한 번에 이해하기/ }).click();
-  await expect(page.getByRole("heading", { name: "세그먼트 트리 한 번에 이해하기" })).toBeVisible();
-  await expect(page.getByText("long long query", { exact: false })).toBeVisible();
-  await expect(page.getByRole("link", { name: "데이터베이스 인덱스" })).toHaveAttribute("href", "/pages/database-index");
+  await expect(page.getByRole("link", { name: /세그먼트 트리 한 번에 이해하기/ })).toHaveCount(0);
   await page.goto("/home");
   await page.getByRole("button", { name: "AI 분야만 보기" }).click();
   await expect(page.getByRole("button", { name: "AI 분야만 보기" })).toHaveAttribute("aria-pressed", "true");
@@ -55,11 +54,8 @@ test("관리자 로그인부터 문서 작성·공개·북마크까지 동작한
   await page.getByPlaceholder("문서에서 배울 수 있는 내용").fill("브라우저에서 작성과 공개 흐름을 검증합니다.");
   await page.locator("[contenteditable='true']").first().fill("테스트로 남긴 첫 번째 학습 문단입니다.");
   await expect(page.getByRole("button", { name: "저장", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "노트 연결" }).click();
-  await page.getByRole("combobox", { name: "연결할 노트 검색" }).fill("세그먼트 트리");
-  await page.screenshot({ path: testInfo.outputPath("editor-link-picker.png"), fullPage: true });
+  await expect(page.getByRole("complementary", { name: "문서 작성 방법" })).toContainText("참고 자료");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.getByRole("option", { name: "세그먼트 트리 한 번에 이해하기" }).click();
   await page.getByRole("button", { name: "공개" }).click();
   await expect(page).toHaveURL(/\/editor\/[0-9a-f-]+$/);
 

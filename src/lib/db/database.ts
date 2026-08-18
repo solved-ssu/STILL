@@ -11,7 +11,7 @@ declare global {
   var stillDatabaseSchemaVersion: number | undefined;
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 function openDatabase(): DatabaseSync {
   const databasePath = resolve(/* turbopackIgnore: true */ process.cwd(), process.env.STILL_DATABASE_PATH ?? "data/still.db");
