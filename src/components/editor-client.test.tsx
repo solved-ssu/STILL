@@ -39,4 +39,10 @@ describe("EditorClient", () => {
     expect(screen.getByLabelText("소주제(선택)")).toHaveTextContent("머신러닝");
     expect(screen.getByLabelText("소주제(선택)")).not.toHaveTextContent("자료구조");
   });
+
+  it("작은 화면에서도 초안을 임시저장할 수 있게 저장 버튼을 숨기지 않는다", () => {
+    render(<EditorClient page={null} topics={[{ slug: "algorithm", title: "알고리즘", icon: "A", description: "", pageCount: 0 }]} subtopics={[]} />);
+
+    expect(screen.getByRole("button", { name: "저장" })).not.toHaveClass("hidden");
+  });
 });
