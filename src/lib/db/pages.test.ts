@@ -45,10 +45,10 @@ describe("page and admin repositories", () => {
 
   it("초기 주제와 예시 문서를 조회한다", () => {
     expect(listTopics(database)).toHaveLength(6);
-    expect(getTopic(database, "algorithm")?.pageCount).toBe(1);
+    expect(getTopic(database, "algorithm")?.pageCount).toBe(3);
     expect(getTopic(database, "missing")).toBeNull();
     expect(listRecentPages(database, 1)[0]?.slug).toBe("segment-tree");
-    expect(listPagesByTopic(database, "algorithm")).toHaveLength(1);
+    expect(listPagesByTopic(database, "algorithm")).toHaveLength(3);
     expect(getPageBySlug(database, "segment-tree", "20261234")?.bookmarked).toBe(false);
     expect(listSubtopics(database)).toHaveLength(15);
     expect(listSubtopics(database, "algorithm").map((subtopic) => subtopic.slug)).toEqual([
@@ -64,6 +64,23 @@ describe("page and admin repositories", () => {
       subtopicTitle: "자료구조",
     });
     expect(getPageBySlug(database, "missing", "20261234")).toBeNull();
+  });
+
+  it("모든 소주제에 중복 없이 연결된 가이드 노트를 제공한다", () => {
+    const topics = listTopics(database);
+    const subtopics = listSubtopics(database);
+    const references = listPageReferences(database);
+
+    expect(topics.map((topic) => topic.pageCount)).toEqual([3, 3, 3, 2, 2, 2]);
+    expect(subtopics).toHaveLength(15);
+    expect(subtopics.every((subtopic) => subtopic.pageCount >= 1)).toBe(true);
+    expect(listRecentPages(database, 30)).toHaveLength(15);
+    expect(references.length).toBeGreaterThanOrEqual(15);
+    expect(new Set(references.map((reference) => `${reference.sourcePageId}:${reference.targetPageId}`)).size).toBe(references.length);
+
+    initializeDatabase(database);
+    expect(listRecentPages(database, 30)).toHaveLength(15);
+    expect(listPageReferences(database)).toEqual(references);
   });
 
   it("작성자만 문서를 수정하고 공개할 수 있다", () => {
@@ -205,11 +222,11 @@ describe("page and admin repositories", () => {
 
   it("기존 문서를 보존하면서 소주제 테이블을 추가하는 전진 마이그레이션을 수행한다", () => {
     database.exec("DROP TABLE page_subtopics; DROP TABLE subtopics;");
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 1 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 15 });
 
     initializeDatabase(database, { seedContent: false });
 
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 1 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 15 });
     expect(database.prepare("SELECT COUNT(*) AS count FROM subtopics").get()).toEqual({ count: 0 });
   });
 
@@ -224,11 +241,11 @@ describe("page and admin repositories", () => {
       content: [{ type: "link", href: `/pages/${target.slug}`, content: "연결 대상" }],
     }]));
     database.exec("DROP TABLE page_links;");
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 2 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 16 });
 
     initializeDatabase(database, { seedContent: false });
 
-    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 2 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM pages").get()).toEqual({ count: 16 });
     expect(listPageReferences(database)).toContainEqual({
       sourcePageId: "segment-tree",
       targetPageId: target.id,
@@ -260,7 +277,7 @@ describe("page and admin repositories", () => {
 
   it("관리자 통계와 신고 목록을 제공한다", () => {
     database.prepare("INSERT INTO reports (page_id, reporter_id, reason, status, created_at) VALUES ('segment-tree', '20261234', '설명이 정확하지 않은 것 같습니다.', 'open', ?)").run(new Date().toISOString());
-    expect(getAdminStats(database)).toEqual({ users: 2, pages: 1, openReports: 1 });
+    expect(getAdminStats(database)).toEqual({ users: 2, pages: 15, openReports: 1 });
     expect(listReports(database)[0]).toMatchObject({ pageTitle: "세그먼트 트리 한 번에 이해하기", reporterName: "김알고", status: "open" });
   });
 

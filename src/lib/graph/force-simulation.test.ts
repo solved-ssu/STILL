@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { estimateRepulsionComparisons, initializeForceNodes, stepForceSimulation } from "./force-simulation";
+import { estimateRepulsionComparisons, initializeForceNodes, nextSimulationAlpha, stepForceSimulation } from "./force-simulation";
 
 const node = (id: string, kind: "root" | "topic" | "subtopic" | "page", x: number, y: number) => ({
   id,
@@ -10,6 +10,15 @@ const node = (id: string, kind: "root" | "topic" | "subtopic" | "page", x: numbe
 });
 
 describe("force simulation", () => {
+  it("재생 중에는 초기 안정화 뒤에도 저에너지 움직임을 유지한다", () => {
+    let alpha = 1;
+    for (let frame = 0; frame < 1_000; frame += 1) alpha = nextSimulationAlpha(alpha);
+
+    expect(alpha).toBeGreaterThanOrEqual(0.04);
+    expect(alpha).toBeLessThan(0.08);
+    expect(nextSimulationAlpha(Number.NaN)).toBe(1);
+  });
+
   it("연결된 노드는 목표 거리 쪽으로 당긴다", () => {
     let nodes = initializeForceNodes([node("a", "topic", 80, 150), node("b", "subtopic", 320, 150)]);
     const before = Math.abs(nodes[1].x - nodes[0].x);

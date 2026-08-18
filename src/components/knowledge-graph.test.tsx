@@ -207,4 +207,21 @@ describe("KnowledgeGraphView", () => {
     expect(container.querySelector("line[data-edge-kind='reference']")).toHaveAttribute("stroke-dasharray", "5 4");
     expect(screen.getByText("문서 링크")).toBeInTheDocument();
   });
+
+  it("노드에 머물면 종류와 연결 수를 보여 주는 탐색 정보를 제공한다", () => {
+    render(
+      <KnowledgeGraphView
+        topics={topics}
+        subtopics={subtopics}
+        pages={pages}
+        references={[{ sourcePageId: "segment-tree", targetPageId: "transformer" }]}
+      />,
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "세그먼트 트리 문서 보기" }));
+    const inspector = screen.getByRole("status", { name: "선택한 노드 정보" });
+    expect(inspector).toHaveTextContent("세그먼트 트리");
+    expect(inspector).toHaveTextContent("노트");
+    expect(inspector).toHaveTextContent("연결 2개");
+  });
 });
