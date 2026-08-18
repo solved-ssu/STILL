@@ -34,4 +34,11 @@ describe("AppShell", () => {
     expect(within(mobileNavigation).getByRole("link", { name: "북마크" })).toHaveAttribute("href", "/me/bookmarks");
     expect(within(mobileNavigation).getByRole("link", { name: "설정" })).toHaveAttribute("href", "/me/settings");
   });
+
+  it("관리자는 모바일에서도 관리자 화면으로 이동할 수 있다", () => {
+    render(<AppShell user={{ studentId: "20260000", name: "관리자", role: "admin" }} topics={topics}><p>본문</p></AppShell>);
+
+    const mobileNavigation = screen.getByRole("navigation", { name: "모바일 주 탐색" });
+    expect(within(mobileNavigation).getByRole("link", { name: "관리자" })).toHaveAttribute("href", "/admin");
+  });
 });
