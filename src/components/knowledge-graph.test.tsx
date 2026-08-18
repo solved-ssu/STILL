@@ -209,6 +209,15 @@ describe("KnowledgeGraphView", () => {
     expect(screen.getByText("문서 링크")).toBeInTheDocument();
   });
 
+  it("전체 그래프에서는 노트 제목을 숨기고 사용자가 머문 노트만 표시한다", () => {
+    const { container } = render(<KnowledgeGraphView topics={topics} subtopics={subtopics} pages={pages} />);
+    const pageNode = container.querySelector("[data-graph-node-id='page:segment-tree']");
+
+    expect(pageNode?.querySelector(":scope > text")).toBeNull();
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "세그먼트 트리 문서 보기" }));
+    expect(pageNode?.querySelector(":scope > text")).toHaveTextContent("세그먼트 트리");
+  });
+
   it("노드에 머물면 종류와 연결 수를 보여 주는 탐색 정보를 제공한다", () => {
     render(
       <KnowledgeGraphView

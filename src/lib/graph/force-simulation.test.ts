@@ -28,6 +28,34 @@ describe("force simulation", () => {
     expect(Math.abs(nodes[1].x - nodes[0].x)).toBeLessThan(before);
   });
 
+  it("교차 참조가 있어도 여러 주제 계층을 한 점으로 뭉치지 않는다", () => {
+    const branches = Array.from({ length: 6 }, (_, index) => {
+      const angle = index / 6 * Math.PI * 2;
+      return [
+        node(`topic-${index}`, "topic", 480 + Math.cos(angle) * 300, 250 + Math.sin(angle) * 180),
+        node(`subtopic-${index}`, "subtopic", 480 + Math.cos(angle) * 360, 250 + Math.sin(angle) * 215),
+        node(`page-${index}`, "page", 480 + Math.cos(angle) * 420, 250 + Math.sin(angle) * 225),
+      ];
+    }).flat();
+    let nodes = initializeForceNodes([node("root", "root", 480, 250), ...branches]);
+    const edges = Array.from({ length: 6 }, (_, index) => [
+      { source: "root", target: `topic-${index}` },
+      { source: `topic-${index}`, target: `subtopic-${index}` },
+      { source: `subtopic-${index}`, target: `page-${index}` },
+      { source: `page-${index}`, target: `page-${(index + 1) % 6}`, kind: "reference" as const },
+    ]).flat();
+    let alpha = 1;
+    for (let frame = 0; frame < 240; frame += 1) {
+      alpha = nextSimulationAlpha(alpha);
+      nodes = stepForceSimulation(nodes, edges, { width: 960, height: 500, alpha, timeMs: frame * 33 });
+    }
+
+    const horizontalSpan = Math.max(...nodes.map((current) => current.x)) - Math.min(...nodes.map((current) => current.x));
+    const verticalSpan = Math.max(...nodes.map((current) => current.y)) - Math.min(...nodes.map((current) => current.y));
+    expect(horizontalSpan).toBeGreaterThan(560);
+    expect(verticalSpan).toBeGreaterThan(300);
+  });
+
   it("겹친 비연결 노드는 서로 밀어내고 좌표를 캔버스 안에 둔다", () => {
     const stepped = stepForceSimulation(
       initializeForceNodes([node("a", "page", 200, 150), node("b", "page", 200, 150)]),
