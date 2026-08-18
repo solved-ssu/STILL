@@ -1,5 +1,6 @@
 import { ko } from "@blocknote/core/locales";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,7 +20,7 @@ vi.mock("@blocknote/react", () => ({
   useCreateBlockNote: mocks.useCreateBlockNote,
 }));
 vi.mock("@blocknote/mantine", () => ({
-  BlockNoteView: () => <div role="textbox" />,
+  BlockNoteView: ({ children }: { children?: ReactNode }) => <><div role="textbox" />{children}</>,
 }));
 
 import BlockEditorInner from "./block-editor-inner";
@@ -90,10 +91,12 @@ describe("BlockEditorInner", () => {
     />);
 
     const controllerProps = mocks.suggestionMenuController.mock.calls[0]?.[0] as {
+      triggerCharacter: string;
       getItems: (query: string) => Promise<Array<{ title: string }>>;
     };
 
-    await expect(controllerProps.getItems("[세그")).resolves.toEqual([
+    expect(controllerProps.triggerCharacter).toBe("[[");
+    await expect(controllerProps.getItems("세그")).resolves.toEqual([
       expect.objectContaining({ title: "세그먼트 트리" }),
     ]);
     await expect(controllerProps.getItems("i")).resolves.toEqual([]);

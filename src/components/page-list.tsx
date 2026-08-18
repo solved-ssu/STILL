@@ -18,8 +18,8 @@ export function PageList({ pages, empty = "아직 문서가 없습니다." }: { 
       {pages.map((page) => (
         <Link href={`/pages/${page.slug}`} key={page.id} className="group grid gap-3 border-b border-[#e8eae7] px-3 py-4 last:border-b-0 hover:bg-[#f7f8f6] sm:grid-cols-[1fr_auto]">
           <div className="flex min-w-0 gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center border border-[#e1e4e0] bg-[#f7f8f6] text-base">{page.icon}</span>
-            <div className="min-w-0"><h3 className="truncate text-[14px] font-semibold group-hover:text-[#315c50]">{page.title}</h3><p className="mt-1 line-clamp-1 text-[13px] text-[#656b66]">{page.excerpt}</p><div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-[#626863]"><span>{page.authorName}</span><span className="flex items-center gap-1"><Clock3 size={11} />{relativeDate(page.updatedAt)}</span><span className="flex items-center gap-1"><Eye size={11} />{page.viewCount}</span><span className="flex items-center gap-1"><MessageCircle size={11} />{page.commentCount}</span></div></div>
+            <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center border border-[#e1e4e0] bg-[#f7f8f6] text-base">{page.icon}</span>
+            <div className="min-w-0"><h3 className="truncate text-[14px] font-semibold group-hover:text-[#315c50]">{page.title}</h3><p className="mt-1 line-clamp-1 text-[13px] text-[#656b66]">{page.excerpt}</p><div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-[#626863]"><span>{page.authorName}</span><span className="flex items-center gap-1"><Clock3 aria-hidden="true" size={11} />{relativeDate(page.updatedAt)}</span><span className="flex items-center gap-1"><Eye aria-hidden="true" size={11} />{page.viewCount}</span><span className="flex items-center gap-1"><MessageCircle aria-hidden="true" size={11} />{page.commentCount}</span></div></div>
           </div>
           <span className="self-center text-[11px] font-medium text-[#315c50]">{page.topicTitle}</span>
         </Link>

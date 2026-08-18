@@ -694,9 +694,11 @@ export function KnowledgeGraphView({
           <div role="status" aria-label="선택한 노드 정보" className="knowledge-graph__inspector">
             <span className="knowledge-graph__inspector-kind">{graphKindLabel(inspectedNode)}</span>
             <strong>{inspectedNode.label}</strong>
-            <span>연결 {connectionCounts.get(inspectedNode.id) ?? 0}개</span>
+            <span>{inspectedNode.kind === "page"
+              ? `문서 링크 ${referenceConnectionCounts.get(inspectedNode.id) ?? 0}개`
+              : `그래프 연결 ${connectionCounts.get(inspectedNode.id) ?? 0}개`}</span>
             {inspectedNode.kind === "page" && (referenceConnectionCounts.get(inspectedNode.id) ?? 0) === 0 && (
-              <span className="knowledge-graph__inspector-empty">아직 연결된 문서가 없습니다</span>
+              <span className="knowledge-graph__inspector-empty">아직 문서 링크가 없습니다</span>
             )}
           </div>
         )}

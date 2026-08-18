@@ -22,7 +22,8 @@ test("실제 편집기에서 [[로 노트를 제안·선택하고 단일 대괄�
   await editor.fill("arr[i]");
   await expect(page.getByText(targetTitle, { exact: true })).toHaveCount(0);
 
-  await editor.fill(`[[${targetTitle}`);
+  await editor.fill("");
+  await editor.pressSequentially(`[[${targetTitle}`);
   const suggestion = page.getByText(targetTitle, { exact: true });
   await expect(suggestion).toBeVisible();
   await suggestion.click();

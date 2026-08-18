@@ -11,7 +11,7 @@ describe("PageList", () => {
     }]} />);
 
     expect(screen.getByText("✎")).toHaveAttribute("aria-hidden", "true");
-    expect(screen.getByText("3").previousElementSibling).toHaveAttribute("aria-hidden", "true");
-    expect(screen.getByText("1").previousElementSibling).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("3").closest("span")?.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("1").closest("span")?.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 });

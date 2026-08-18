@@ -30,8 +30,7 @@ export function WritingGuide({ variant = "full" }: WritingGuideProps) {
   return (
     <aside aria-label="문서 작성 방법" className={compact ? "border border-[#dfe2de] bg-[#f8f9f7] p-4" : "border-y border-[#dfe2de] bg-white p-5 md:p-6"}>
       <div className="max-w-3xl">
-        <p className="text-[11px] font-semibold tracking-[.12em] text-[#315c50]">MEMBER WRITING</p>
-        <h2 className="mt-1 text-lg font-semibold tracking-[-.02em]">문서 작성 가이드</h2>
+        <h2 className="text-lg font-semibold tracking-[-.02em]">문서 작성 가이드</h2>
         <p className="mt-2 text-sm leading-6 text-[#626863]">예시 문서 대신 이 기준을 참고해, 부원 각자의 학습·실험·문제 해결 기록을 남겨 주세요.</p>
       </div>
       <ol className={compact ? "mt-4 grid gap-3" : "mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3"}>

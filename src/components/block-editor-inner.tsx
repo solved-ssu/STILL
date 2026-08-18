@@ -34,8 +34,10 @@ export default function BlockEditorInner({
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const linkPickerButtonRef = useRef<HTMLButtonElement>(null);
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkQuery, setLinkQuery] = useState("");
+  const [activeLinkIndex, setActiveLinkIndex] = useState(0);
   const linkResults = useMemo(() => searchLinkablePages(linkablePages, linkQuery), [linkQuery, linkablePages]);
   useEffect(() => {
     const textBox = containerRef.current?.querySelector<HTMLElement>("[role='textbox']");
@@ -56,14 +58,57 @@ export default function BlockEditorInner({
     editor.focus();
   }
 
+  function closeLinkPicker(returnFocus = false): void {
+    setLinkPickerOpen(false);
+    setLinkQuery("");
+    setActiveLinkIndex(0);
+    if (returnFocus) linkPickerButtonRef.current?.focus();
+  }
+
+  function toggleLinkPicker(): void {
+    if (linkPickerOpen) {
+      closeLinkPicker();
+      return;
+    }
+    setLinkQuery("");
+    setActiveLinkIndex(0);
+    setLinkPickerOpen(true);
+  }
+
+  function handleLinkPickerKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeLinkPicker(true);
+      return;
+    }
+    if (linkResults.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveLinkIndex((index) => Math.min(index + 1, linkResults.length - 1));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveLinkIndex((index) => Math.max(index - 1, 0));
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertPageLink(linkResults[activeLinkIndex] ?? linkResults[0]);
+    }
+  }
+
   return (
     <div ref={containerRef}>
       {editable && linkablePages.length > 0 && (
         <div className="relative mb-4 border-y border-[#dfe2de] bg-[#f8f9f7] px-3 py-2">
           <button
+            ref={linkPickerButtonRef}
             type="button"
             aria-expanded={linkPickerOpen}
-            onClick={() => setLinkPickerOpen((open) => !open)}
+            aria-haspopup="listbox"
+            aria-controls={linkPickerOpen ? "page-link-results" : undefined}
+            onClick={toggleLinkPicker}
             className="text-xs font-semibold text-[#315c50] hover:underline"
           >
             노트 연결 <span aria-hidden="true" className="font-normal text-[#717772]">[[</span>
@@ -79,18 +124,25 @@ export default function BlockEditorInner({
                 aria-label="연결할 노트 검색"
                 aria-expanded="true"
                 aria-controls="page-link-results"
+                aria-autocomplete="list"
+                aria-activedescendant={linkResults[activeLinkIndex] ? `page-link-result-${linkResults[activeLinkIndex].id}` : undefined}
                 value={linkQuery}
-                onChange={(event) => setLinkQuery(event.target.value)}
+                onChange={(event) => {
+                  setLinkQuery(event.target.value);
+                  setActiveLinkIndex(0);
+                }}
+                onKeyDown={handleLinkPickerKeyDown}
                 placeholder="제목으로 검색"
                 className="h-9 w-full border border-[#d5d8d4] px-3 text-sm outline-none"
               />
-              <div id="page-link-results" role="listbox" className="mt-1 max-h-56 overflow-auto">
-                {linkResults.map((page) => (
+              <div id="page-link-results" role="listbox" aria-label="연결할 노트 목록" className="mt-1 max-h-56 overflow-auto">
+                {linkResults.map((page, index) => (
                   <button
                     key={page.id}
+                    id={`page-link-result-${page.id}`}
                     type="button"
                     role="option"
-                    aria-selected="false"
+                    aria-selected={activeLinkIndex === index}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => insertPageLink(page)}
                     className="block w-full px-3 py-2 text-left text-sm hover:bg-[#eef2ef]"
@@ -112,11 +164,9 @@ export default function BlockEditorInner({
       >
         {editable && linkablePages.length > 0 && (
           <SuggestionMenuController
-            triggerCharacter="["
-            minQueryLength={1}
+            triggerCharacter="[["
             getItems={async (query) => {
-              if (!query.startsWith("[")) return [];
-              return searchLinkablePages(linkablePages, query.slice(1)).map((page) => ({
+              return searchLinkablePages(linkablePages, query).map((page) => ({
                 title: page.title,
                 subtext: `/pages/${page.slug}`,
                 aliases: [page.slug],
