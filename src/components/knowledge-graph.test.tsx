@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PageSummary, SubtopicSummary, TopicSummary } from "@/lib/db/pages";
 import { KnowledgeGraphView } from "./knowledge-graph";
@@ -223,5 +224,37 @@ describe("KnowledgeGraphView", () => {
     expect(inspector).toHaveTextContent("세그먼트 트리");
     expect(inspector).toHaveTextContent("노트");
     expect(inspector).toHaveTextContent("연결 2개");
+  });
+
+  it("연결이 없는 노드는 빈 상태를 구체적으로 안내한다", () => {
+    render(<KnowledgeGraphView topics={topics} subtopics={subtopics} pages={pages} />);
+
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "세그먼트 트리 문서 보기" }));
+    expect(screen.getByRole("status", { name: "선택한 노드 정보" })).toHaveTextContent("아직 연결된 문서가 없습니다");
+  });
+
+  it("그래프가 화면 밖으로 나가면 움직임을 중단하고 돌아오면 재개한다", () => {
+    let intersectionCallback: IntersectionObserverCallback = () => undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(callback: IntersectionObserverCallback) { intersectionCallback = callback; }
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = () => [];
+      root = null;
+      rootMargin = "0px";
+      thresholds = [0];
+    });
+
+    render(<KnowledgeGraphView topics={topics} subtopics={subtopics} pages={pages} />);
+    const graph = screen.getByRole("group", { name: "분야와 문서 사이의 관계를 나타내는 노트 그래프" });
+    expect(observe).toHaveBeenCalled();
+    act(() => intersectionCallback([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(graph).toHaveAttribute("data-motion", "suspended");
+    act(() => intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(graph).toHaveAttribute("data-motion", "playing");
+    vi.unstubAllGlobals();
   });
 });

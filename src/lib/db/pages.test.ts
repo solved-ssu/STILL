@@ -20,6 +20,7 @@ import {
   listSubtopics,
   listContributorStats,
   listPageReferences,
+  listPublishedPageOptions,
   listTopics,
   toggleBookmark,
   reorderSubtopics,
@@ -77,6 +78,14 @@ describe("page and admin repositories", () => {
     expect(listRecentPages(database, 30)).toHaveLength(15);
     expect(references.length).toBeGreaterThanOrEqual(15);
     expect(new Set(references.map((reference) => `${reference.sourcePageId}:${reference.targetPageId}`)).size).toBe(references.length);
+    expect(references).toContainEqual({ sourcePageId: "segment-tree", targetPageId: "database-index" });
+    expect(getPageBySlug(database, "segment-tree", "20261234")?.content).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "codeBlock" })]),
+    );
+
+    const options = listPublishedPageOptions(database);
+    expect(options).toHaveLength(15);
+    expect(options[0]).toEqual(expect.objectContaining({ id: expect.any(String), slug: expect.any(String), title: expect.any(String) }));
 
     initializeDatabase(database);
     expect(listRecentPages(database, 30)).toHaveLength(15);
